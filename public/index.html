@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sao Việt Software - Chấm Công & Quản Trị Nhân Sự</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Thư viện Face-api.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+
+  <style>
+    .mirror-camera { transform: scaleX(-1); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes scanMove {
+      0% { top: 5%; opacity: 0.8; }
+      50% { opacity: 1; }
+      100% { top: 92%; opacity: 0.8; }
+    }
+    .scanner-line {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(to right, transparent, #10b981, transparent);
+      box-shadow: 0 0 15px #10b981;
+      animation: scanMove 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased flex flex-col justify-between selection:bg-indigo-600 selection:text-white">
+
+  <!-- Toast Notification -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full px-4 sm:px-0 pointer-events-none"></div>
+
+  <!-- Header -->
+  <header class="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black shadow-md shadow-indigo-200 text-lg">SV</div>
+        <div>
+          <h1 class="text-sm sm:text-base font-extrabold tracking-tight text-slate-900 leading-tight">Phần Mềm Sao Việt</h1>
+          <p class="text-[11px] text-slate-500 font-medium">Hệ Thống Chấm Công Khuôn Mặt AI (Edge AI)</p>
+        </div>
+      </div>
+
+      <div id="userBadge" class="hidden items-center space-x-2 sm:space-x-3 bg-slate-100 border border-slate-200 py-1 px-3 rounded-full">
+        <div class="w-6 h-6 rounded-full bg-slate-300 text-slate-700 font-bold flex items-center justify-center text-xs" id="userAvatarText">U</div>
+        <span class="text-xs sm:text-sm font-semibold text-slate-800 max-w-[100px] truncate" id="userNameText"></span>
+        <span class="text-[10px] sm:text-xs px-2 py-0.5 rounded-md font-bold uppercase tracking-wider" id="userRoleBadge"></span>
+        <button onclick="logout()" class="text-slate-400 hover:text-rose-600 text-xs sm:text-sm ml-1 transition p-1">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
+    
+    <!-- ĐĂNG NHẬP -->
+    <div id="authSection" class="max-w-md mx-auto my-12 bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-xl">
+      <div class="text-center mb-6">
+        <div class="inline-flex p-3 rounded-2xl bg-indigo-50 text-indigo-600 mb-2 text-2xl">
+          <i class="fa-solid fa-face-viewfinder"></i>
+        </div>
+        <h2 class="text-2xl font-black text-slate-900">Đăng Nhập</h2>
+        <p class="text-xs text-slate-500 mt-1">Cổng Quản Trị Nhân Sự & Chấm Công</p>
+      </div>
+      <form onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Tài khoản</label>
+          <input type="text" id="loginUsername" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-600 font-medium" placeholder="hradmin hoặc mã nhân viên">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Mật khẩu</label>
+          <input type="password" id="loginPassword" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-600 font-medium" placeholder="••••••••">
+        </div>
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 text-sm transition">Đăng Nhập</button>
+      </form>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboardSection" class="hidden space-y-6">
+      
+      <!-- Tab Menu -->
+      <div class="overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div class="flex space-x-2 border-b border-slate-200 pb-2 min-w-max">
+          <button onclick="switchTab('employeeTab')" class="tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 hidden" id="tab-employeeTab">
+            <i class="fa-solid fa-users-gear text-amber-500 text-base"></i>
+            <span>Hồ Sơ & Quét Mặt Mới</span>
+          </button>
+          <button onclick="switchTab('checkinTab')" class="tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2 hidden" id="tab-checkinTab">
+            <i class="fa-solid fa-camera-viewfinder text-indigo-500 text-base"></i>
+            <span>Chấm Công Camera AI</span>
+          </button>
+          <button onclick="switchTab('leaveTab')" class="tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2" id="tab-leaveTab">
+            <i class="fa-solid fa-calendar-check text-rose-500 text-base"></i>
+            <span id="leaveTabTitle">Nghỉ Phép</span>
+          </button>
+          <button onclick="switchTab('payrollTab')" class="tab-btn px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-2" id="tab-payrollTab">
+            <i class="fa-solid fa-wallet text-emerald-500 text-base"></i>
+            <span id="payrollTabTitle">Bảng Lương</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ================= TAB 1: HR THÊM NHÂN SỰ & QUÉT MẶT ================= -->
+      <div id="employeeTab" class="tab-content hidden space-y-6">
+        <div class="bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+            <i class="fa-solid fa-user-plus text-amber-500"></i>
+            <span>Tiếp Nhận Nhân Sự & Quét Khuôn Mặt Mẫu (Tự Động Lưu)</span>
+          </h3>
+          <p class="text-xs text-slate-500 mb-5">HR có thể bật camera quét trực tiếp hoặc chọn ảnh có sẵn, AI sẽ tự trích xuất và lưu vector khuôn mặt.</p>
+
+          <form onsubmit="handleCreateEmployee(event)" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Mã NV *</label>
+                <input type="text" id="empCode" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500" placeholder="SV-002">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Họ tên *</label>
+                <input type="text" id="empFullName" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500" placeholder="Nguyễn Văn A">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Email *</label>
+                <input type="email" id="empEmail" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500" placeholder="vana@saoviet.com">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Phòng ban *</label>
+                <select id="empDept" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Chức vụ *</label>
+                <select id="empPos" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Lương cơ bản *</label>
+                <input type="number" id="empSalary" required value="10000000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500">
+              </div>
+            </div>
+
+            <!-- MODULE CAMERA QUÉT MẶT MẪU TRỰC TIẾP CHO HR -->
+            <div class="bg-indigo-50/70 p-5 rounded-2xl border border-indigo-100 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="text-xs font-bold text-indigo-950 uppercase tracking-wider">
+                    <i class="fa-solid fa-camera mr-1"></i> Quét Mặt Nhân Viên Lần 1 (Bằng Camera hoặc Tệp Ảnh)
+                  </h4>
+                  <p class="text-[11px] text-slate-500">Nhân viên nhìn thẳng camera để AI lấy mẫu 128 số đặc trưng.</p>
+                </div>
+                <span id="enrollStatusTag" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                  Chưa quét mặt
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                <!-- Khung camera chụp cho HR -->
+                <div class="md:col-span-7 bg-slate-950 rounded-2xl overflow-hidden relative aspect-video flex items-center justify-center border-2 border-indigo-200 shadow-inner">
+                  <video id="hrEnrollVideo" autoplay playsinline class="w-full h-full object-cover mirror-camera hidden"></video>
+                  <canvas id="hrEnrollCanvas" class="hidden"></canvas>
+                  
+                  <div id="hrEnrollPlaceholder" class="text-center p-4 text-slate-400">
+                    <i class="fa-solid fa-camera text-2xl mb-1 text-slate-500"></i>
+                    <p class="text-xs">Camera chụp mẫu đang tắt</p>
+                  </div>
+                </div>
+
+                <!-- Điều khiển và xem trước -->
+                <div class="md:col-span-5 space-y-3">
+                  <div class="flex gap-2">
+                    <button type="button" onclick="toggleHREnrollCamera()" id="btnHrToggleCam" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-xl text-xs transition shadow-sm">
+                      <i class="fa-solid fa-video mr-1"></i> <span id="btnHrToggleCamText">Bật Camera HR</span>
+                    </button>
+                    <button type="button" onclick="captureAndEnrollFace()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl text-xs transition shadow-sm">
+                      <i class="fa-solid fa-camera-retro mr-1"></i> Quét & Trích Xuất
+                    </button>
+                  </div>
+
+                  <div class="pt-2 border-t border-indigo-200/60">
+                    <label class="block text-[11px] text-slate-600 font-semibold mb-1">Hoặc nạp bằng file ảnh chân dung:</label>
+                    <input type="file" id="empFaceFile" accept="image/*" onchange="processEnrollFaceFromFile(event)" class="text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300 cursor-pointer w-full">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cấp User -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+              <div>
+                <label class="block text-[11px] font-bold uppercase text-indigo-600 mb-1">Username cấp cho NV *</label>
+                <input type="text" id="empUsername" required class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:border-indigo-500" placeholder="vana">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold uppercase text-indigo-600 mb-1">Mật khẩu ban đầu *</label>
+                <input type="text" id="empPassword" value="123456" required class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:border-indigo-500">
+              </div>
+              <div>
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md text-xs flex items-center justify-center gap-1.5">
+                  <i class="fa-solid fa-check"></i>
+                  <span>Lưu Hồ Sơ & Vector Mặt</span>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Bảng danh sách nhân sự -->
+        <div class="bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-bold text-slate-900">Danh Sách Nhân Sự Đang Hoạt Động</h3>
+            <button onclick="loadEmployees()" class="text-xs text-indigo-600 font-bold">Làm mới</button>
+          </div>
+          <div class="overflow-x-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-left text-xs whitespace-nowrap">
+              <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b border-slate-200">
+                <tr>
+                  <th class="p-3.5">Mã NV</th>
+                  <th class="p-3.5">Họ tên</th>
+                  <th class="p-3.5">Tài khoản</th>
+                  <th class="p-3.5">Phòng ban</th>
+                  <th class="p-3.5">Chức vụ</th>
+                  <th class="p-3.5">Trạng thái Khuôn mặt AI</th>
+                </tr>
+              </thead>
+              <tbody id="employeeTableBody" class="divide-y divide-slate-100 text-slate-700"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 2: NHÂN VIÊN CHẤM CÔNG BẰNG KHUÔN MẶT ================= -->
+      <div id="checkinTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-6 bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <i class="fa-solid fa-camera-viewfinder text-indigo-600"></i>
+                  <span>Xác Thực Khuôn Mặt Vào Ca</span>
+                </h3>
+                <p class="text-xs text-slate-500">Hệ thống chỉ chấp nhận đúng khuôn mặt đã đăng ký</p>
+              </div>
+              <span id="faceDetectStatus" class="text-[11px] font-bold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+                Camera Tắt
+              </span>
+            </div>
+
+            <!-- Màn hình Camera Nhân Viên -->
+            <div class="relative w-full aspect-[4/3] bg-slate-950 rounded-2xl overflow-hidden shadow-lg flex items-center justify-center border-2 border-slate-200">
+              <video id="webcamVideo" autoplay playsinline class="w-full h-full object-cover mirror-camera hidden"></video>
+
+              <div id="cameraPlaceholder" class="text-center p-6 text-slate-500">
+                <i class="fa-solid fa-video-slash text-3xl mb-2 text-slate-400"></i>
+                <p class="text-xs font-medium text-slate-400">Bấm nút "Bật Camera" bên dưới để quét mặt.</p>
+              </div>
+
+              <div id="scanOverlay" class="absolute inset-0 pointer-events-none hidden m-4 rounded-xl border border-emerald-500/40 flex items-center justify-center">
+                <div class="scanner-line"></div>
+                <div class="w-44 h-44 sm:w-52 sm:h-52 border-2 border-dashed border-emerald-400 rounded-3xl animate-pulse flex items-center justify-center">
+                  <span id="aiScoreTag" class="text-[10px] text-emerald-400 bg-slate-900/80 px-2 py-0.5 rounded-full font-mono">Đang quét...</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-3 flex justify-between items-center">
+              <button onclick="toggleCamera()" id="btnToggleCam" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5">
+                <i class="fa-solid fa-video"></i>
+                <span id="btnToggleCamText">Bật Camera</span>
+              </button>
+              <span id="modelLoadStatus" class="text-[11px] text-amber-600 font-semibold">Đang tải Model AI...</span>
+            </div>
+          </div>
+
+          <!-- Nút bấm quét mặt xác thực: Vào Ca & Ra Ca -->
+          <div class="mt-6 pt-4 border-t border-slate-100">
+            <div class="grid grid-cols-2 gap-3">
+              <button onclick="verifyAndSubmitAttendance('IN')" id="btnVerifyCheckIn" class="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold py-3.5 px-3 rounded-xl transition shadow-lg shadow-emerald-600/20 text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-arrow-right-to-bracket text-base"></i>
+                <span>QUÉT MẶT: VÀO CA</span>
+              </button>
+              <button onclick="verifyAndSubmitAttendance('OUT')" id="btnVerifyCheckOut" class="bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white font-bold py-3.5 px-3 rounded-xl transition shadow-lg shadow-rose-600/20 text-xs sm:text-sm flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-arrow-right-from-bracket text-base"></i>
+                <span>QUÉT MẶT: RA CA</span>
+              </button>
+            </div>
+            <div id="checkinResult" class="mt-3 text-xs p-3 rounded-xl hidden border font-semibold"></div>
+          </div>
+        </div>
+
+        <!-- Bảng lịch sử chấm công -->
+        <div class="lg:col-span-6 bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-base font-bold text-slate-900">Lịch Sử Chấm Công Của Bạn</h3>
+              <button onclick="loadMyAttendance()" class="text-xs text-indigo-600 font-bold">Tải lại</button>
+            </div>
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+              <table class="w-full text-left text-xs whitespace-nowrap">
+                <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b border-slate-200">
+                  <tr>
+                    <th class="p-3.5">Ngày</th>
+                    <th class="p-3.5">Giờ Vào</th>
+                    <th class="p-3.5">Giờ Ra</th>
+                    <th class="p-3.5">Thời Lượng</th>
+                    <th class="p-3.5">Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody id="attendanceLogsTable" class="divide-y divide-slate-100 text-slate-700"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 3: NGHỈ PHÉP ================= -->
+      <div id="leaveTab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div id="leaveFormSection" class="lg:col-span-5 bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-2">Lập Đơn Nghỉ Phép Mới</h3>
+          <form onsubmit="handleCreateLeave(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Loại hình</label>
+              <select id="leaveType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                <option value="ANNUAL">Phép năm (Có lương)</option>
+                <option value="SICK">Nghỉ ốm đau</option>
+                <option value="UNPAID">Nghỉ không lương</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Từ ngày</label>
+                <input type="date" id="leaveStart" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Đến ngày</label>
+                <input type="date" id="leaveEnd" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Số ngày</label>
+              <input type="number" step="0.5" id="leaveDays" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="1">
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Lý do</label>
+              <textarea id="leaveReason" rows="3" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="Ghi rõ lý do..."></textarea>
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition">Gửi Đơn</button>
+          </form>
+        </div>
+
+        <div id="leaveListSection" class="lg:col-span-7 bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-bold text-slate-900" id="leaveListTitle">Danh Sách Đơn Nghỉ</h3>
+            <button onclick="loadLeaveRequests()" class="text-xs text-indigo-600 font-bold">Làm mới</button>
+          </div>
+          <div class="overflow-x-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-left text-xs whitespace-nowrap">
+              <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b border-slate-200">
+                <tr>
+                  <th class="p-3.5">Họ tên</th>
+                  <th class="p-3.5">Thời gian</th>
+                  <th class="p-3.5">Trạng thái</th>
+                  <th class="p-3.5 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="leaveRequestsTable" class="divide-y divide-slate-100 text-slate-700"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 4: BẢNG LƯƠNG ================= -->
+      <div id="payrollTab" class="tab-content hidden space-y-6">
+        <div id="hrPayrollControls" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4 hidden">
+          <div class="flex items-center gap-3">
+            <label class="text-sm font-bold text-slate-700">Tháng:</label>
+            <input type="text" id="payrollMonth" value="10-2026" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm w-32 font-bold">
+            <button onclick="generatePayroll()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-xl font-bold shadow-md">Tính Lương</button>
+          </div>
+          <button onclick="exportExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-xl font-bold shadow-md">Xuất File Excel</button>
+        </div>
+
+        <div class="bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-bold text-slate-900" id="payrollHeading">Bảng Lương</h3>
+            <button onclick="loadPayrollList()" class="text-xs text-indigo-600 font-bold">Tải lại</button>
+          </div>
+          <div class="overflow-x-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-left text-xs whitespace-nowrap">
+              <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b border-slate-200">
+                <tr>
+                  <th class="p-3.5">Mã NV</th>
+                  <th class="p-3.5">Họ tên</th>
+                  <th class="p-3.5">Lương Cơ Bản</th>
+                  <th class="p-3.5">Ngày Công</th>
+                  <th class="p-3.5">Đi Muộn</th>
+                  <th class="p-3.5">Khấu Trừ</th>
+                  <th class="p-3.5 font-bold text-emerald-600">Thực Lĩnh</th>
+                </tr>
+              </thead>
+              <tbody id="payrollTableBody" class="divide-y divide-slate-100 text-slate-700"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="bg-white border-t border-slate-200 py-4 text-center">
+    <p class="text-xs text-slate-400 font-medium">© 2026 Công Ty TNHH Phần Mềm Sao Việt. Hệ thống vận hành AI.</p>
+  </footer>
+
+  <script>
+    let token = localStorage.getItem('token');
+    let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    const API_BASE = '/api/v1';
+
+    let hrCameraStream = null;
+    let employeeCameraStream = null;
+    let enrolledDescriptor = null; // Mảng 128 số khi HR tạo
+    let myRegisteredDescriptor = null; // Mảng 128 số tải về cho NV
+    let isModelLoaded = false;
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const isSuccess = type === 'success';
+      toast.className = `${isSuccess ? 'bg-emerald-600' : 'bg-rose-600'} text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs sm:text-sm font-semibold pointer-events-auto transition-all`;
+      toast.innerHTML = `<i class="fa-solid ${isSuccess ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3500);
+    }
+
+    // Tải mô hình AI
+    async function loadFaceModels() {
+      const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+      try {
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+        ]);
+        isModelLoaded = true;
+        document.getElementById('modelLoadStatus').innerText = 'Model AI Sẵn Sàng';
+        document.getElementById('modelLoadStatus').className = 'text-[11px] text-emerald-600 font-bold';
+      } catch (err) {
+        console.error('Lỗi nạp Model:', err);
+        document.getElementById('modelLoadStatus').innerText = 'Lỗi nạp Model AI';
+      }
+    }
+
+    function getEuclideanDistance(desc1, desc2) {
+      return Math.sqrt(desc1.reduce((sum, val, i) => sum + Math.pow(val - desc2[i], 2), 0));
+    }
+
+    // ================= 1. HR CAMERA QUÉT MẪU TRỰC TIẾP =================
+    async function toggleHREnrollCamera() {
+      if (hrCameraStream) {
+        stopHREnrollCamera();
+      } else {
+        try {
+          hrCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+          });
+          const video = document.getElementById('hrEnrollVideo');
+          video.srcObject = hrCameraStream;
+          video.classList.remove('hidden');
+          document.getElementById('hrEnrollPlaceholder').classList.add('hidden');
+          document.getElementById('btnHrToggleCamText').innerText = 'Tắt Camera HR';
+        } catch (err) {
+          showToast('Không thể bật camera HR: ' + err.message, 'error');
+        }
+      }
+    }
+
+    function stopHREnrollCamera() {
+      if (hrCameraStream) {
+        hrCameraStream.getTracks().forEach(t => t.stop());
+        hrCameraStream = null;
+      }
+      document.getElementById('hrEnrollVideo').classList.add('hidden');
+      document.getElementById('hrEnrollPlaceholder').classList.remove('hidden');
+      document.getElementById('btnHrToggleCamText').innerText = 'Bật Camera HR';
+    }
+
+    // HR Chụp trực tiếp từ Camera để lấy 128 số
+    async function captureAndEnrollFace() {
+      if (!isModelLoaded) {
+        showToast('Mô hình AI đang nạp, vui lòng đợi 2-3 giây!', 'error');
+        return;
+      }
+      if (!hrCameraStream) {
+        showToast('Vui lòng bấm Bật Camera HR trước!', 'error');
+        return;
+      }
+
+      const video = document.getElementById('hrEnrollVideo');
+      showToast('Đang phát hiện & trích xuất khuôn mặt...');
+
+      const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!detection) {
+        showToast('Không nhìn thấy khuôn mặt rõ ràng trước camera HR!', 'error');
+        return;
+      }
+
+      enrolledDescriptor = Array.from(detection.descriptor);
+      const tag = document.getElementById('enrollStatusTag');
+      tag.innerText = 'Đã quét khuôn mặt thành công (128 số)';
+      tag.className = 'text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200';
+      showToast('Đã lưu dữ liệu khuôn mặt mẫu!');
+    }
+
+    // HR Chọn file ảnh để trích xuất 128 số
+    async function processEnrollFaceFromFile(event) {
+      const file = event.target.files[0];
+      if (!file || !isModelLoaded) return;
+
+      const img = await faceapi.bufferToImage(file);
+      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!detection) {
+        showToast('Ảnh không tìm thấy mặt rõ nét. Vui lòng chọn ảnh khác!', 'error');
+        return;
+      }
+
+      enrolledDescriptor = Array.from(detection.descriptor);
+      const tag = document.getElementById('enrollStatusTag');
+      tag.innerText = 'Đã quét khuôn mặt thành công (128 số)';
+      tag.className = 'text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200';
+      showToast('Đã trích xuất xong vector mặt từ ảnh!');
+    }
+
+    // ================= 2. NHÂN VIÊN CHẤM CÔNG CAMERA =================
+    async function toggleCamera() {
+      if (employeeCameraStream) {
+        stopEmployeeCamera();
+      } else {
+        try {
+          employeeCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+          });
+          const video = document.getElementById('webcamVideo');
+          video.srcObject = employeeCameraStream;
+          video.classList.remove('hidden');
+          document.getElementById('cameraPlaceholder').classList.add('hidden');
+          document.getElementById('scanOverlay').classList.remove('hidden');
+          document.getElementById('btnToggleCamText').innerText = 'Tắt Camera';
+          document.getElementById('faceDetectStatus').innerText = 'Camera Đang Mở';
+          document.getElementById('faceDetectStatus').className = 'text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full';
+        } catch (err) {
+          showToast('Không thể bật camera: ' + err.message, 'error');
+        }
+      }
+    }
+
+    function stopEmployeeCamera() {
+      if (employeeCameraStream) {
+        employeeCameraStream.getTracks().forEach(t => t.stop());
+        employeeCameraStream = null;
+      }
+      document.getElementById('webcamVideo').classList.add('hidden');
+      document.getElementById('cameraPlaceholder').classList.remove('hidden');
+      document.getElementById('scanOverlay').classList.add('hidden');
+      document.getElementById('btnToggleCamText').innerText = 'Bật Camera';
+      document.getElementById('faceDetectStatus').innerText = 'Camera Tắt';
+      document.getElementById('faceDetectStatus').className = 'text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full';
+    }
+
+    // Quét khuôn mặt xác thực chung cho cả VÀO CA ('IN') và RA CA ('OUT')
+async function verifyAndSubmitAttendance(type) {
+  if (!employeeCameraStream) {
+    showToast('Vui lòng bật Camera trước khi bấm quét mặt!', 'error');
+    return;
+  }
+
+  // Đảm bảo đã nạp 128 số đặc trưng của nhân viên
+  if (!myRegisteredDescriptor || myRegisteredDescriptor.length === 0) {
+    await loadMyFaceDescriptor();
+  }
+
+  if (!myRegisteredDescriptor || myRegisteredDescriptor.length === 0) {
+    showToast('Hồ sơ chưa có dữ liệu khuôn mặt mẫu! Hãy liên hệ HR để quét mẫu mặt.', 'error');
+    return;
+  }
+
+  const video = document.getElementById('webcamVideo');
+  document.getElementById('aiScoreTag').innerText = 'Đang nhận diện...';
+
+  // 1. Nhận diện khuôn mặt hiện tại qua camera
+  const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+
+  if (!detection) {
+    showToast('Không tìm thấy khuôn mặt! Hãy nhìn thẳng vào camera.', 'error');
+    return;
+  }
+
+  // 2. Tính khoảng cách vector đặc trưng
+  const currentDescriptor = Array.from(detection.descriptor);
+  const distance = getEuclideanDistance(currentDescriptor, myRegisteredDescriptor);
+  
+  const MATCH_THRESHOLD = 0.55;
+  const isMatch = distance < MATCH_THRESHOLD;
+  const matchPercent = Math.max(0, Math.round((1 - distance) * 100));
+
+  document.getElementById('aiScoreTag').innerText = `Độ khớp: ${matchPercent}%`;
+
+  if (!isMatch) {
+    showToast(`Khuôn mặt không khớp (Độ khớp: ${matchPercent}%). Chấm công bị từ chối!`, 'error');
+    const box = document.getElementById('checkinResult');
+    box.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+    box.classList.add('bg-rose-50', 'text-rose-700', 'border-rose-200');
+    box.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1"></i> Khuôn mặt không khớp với hồ sơ nhân viên!`;
+    return;
+  }
+
+  // 3. Đúng khuôn mặt -> Gửi yêu cầu tương ứng (IN / OUT)
+  const endpoint = type === 'IN' ? 'check-in' : 'check-out';
+  try {
+    const res = await fetch(`${API_BASE}/attendances/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ faceVerified: true })
+    });
+    const data = await res.json();
+    const box = document.getElementById('checkinResult');
+    box.classList.remove('hidden', 'bg-rose-50', 'text-rose-700', 'border-rose-200', 'bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+
+    if (data.success) {
+      box.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+      box.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5"></i> ${data.message} (Độ khớp AI: ${matchPercent}%)`;
+      showToast(data.message, 'success');
+      loadMyAttendance();
+    } else {
+      box.classList.add('bg-rose-50', 'text-rose-700', 'border-rose-200');
+      box.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${data.message}`;
+      showToast(data.message, 'error');
+    }
+  } catch (err) {
+    showToast('Lỗi gửi kết quả chấm công lên server', 'error');
+  }
+}
+
+    async function loadMyFaceDescriptor() {
+      try {
+        const res = await fetch(`${API_BASE}/employees/my-face-descriptor`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.data.faceDescriptor && data.data.faceDescriptor.length > 0) {
+          myRegisteredDescriptor = data.data.faceDescriptor;
+          console.log('[Face-AI] Đã nạp thành công 128 số đặc trưng của nhân viên:', data.data.fullName);
+        } else {
+          myRegisteredDescriptor = null;
+        }
+      } catch (err) {
+        console.error('Lỗi nạp faceDescriptor của nhân viên:', err);
+      }
+    }
+
+    // ================= 3. KHỞI TẠO & PHÂN QUYỀN =================
+    function init() {
+      if (token && currentUser) {
+        document.getElementById('authSection').classList.add('hidden');
+        document.getElementById('dashboardSection').classList.remove('hidden');
+        document.getElementById('userBadge').classList.remove('hidden');
+        document.getElementById('userBadge').classList.add('flex');
+        document.getElementById('userNameText').innerText = currentUser.username;
+        document.getElementById('userAvatarText').innerText = currentUser.username.charAt(0).toUpperCase();
+
+        const roleBadge = document.getElementById('userRoleBadge');
+        if (currentUser.role === 'HR_ADMIN') {
+          roleBadge.innerText = 'HR Quản Trị';
+          roleBadge.className = "text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-amber-100 text-amber-700 border border-amber-200";
+          document.getElementById('tab-employeeTab').classList.remove('hidden');
+          document.getElementById('tab-checkinTab').classList.add('hidden');
+          document.getElementById('leaveFormSection').classList.add('hidden');
+          document.getElementById('leaveListSection').className = "lg:col-span-12 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm";
+          document.getElementById('hrPayrollControls').classList.remove('hidden');
+          switchTab('employeeTab');
+          loadDeptAndPosOptions();
+          loadEmployees();
+        } else {
+          roleBadge.innerText = 'Nhân Viên';
+          roleBadge.className = "text-[10px] px-2 py-0.5 rounded-md font-bold uppercase bg-indigo-100 text-indigo-700 border border-indigo-200";
+          document.getElementById('tab-employeeTab').classList.add('hidden');
+          document.getElementById('tab-checkinTab').classList.remove('hidden');
+          document.getElementById('leaveFormSection').classList.remove('hidden');
+          document.getElementById('leaveListSection').className = "lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm";
+          document.getElementById('hrPayrollControls').classList.add('hidden');
+          switchTab('checkinTab');
+          loadMyFaceDescriptor();
+          loadMyAttendance();
+        }
+
+        loadLeaveRequests();
+        loadPayrollList();
+        loadFaceModels();
+      } else {
+        document.getElementById('authSection').classList.remove('hidden');
+        document.getElementById('dashboardSection').classList.add('hidden');
+        document.getElementById('userBadge').classList.add('hidden');
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('loginUsername').value;
+      const password = document.getElementById('loginPassword').value;
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('currentUser', JSON.stringify(data.data.user));
+          token = data.token;
+          currentUser = data.data.user;
+          showToast('Đăng nhập thành công!');
+          init();
+        } else {
+          showToast(data.message, 'error');
+        }
+      } catch (err) { showToast('Lỗi kết nối máy chủ', 'error'); }
+    }
+
+    function logout() {
+      stopHREnrollCamera();
+      stopEmployeeCamera();
+      localStorage.clear();
+      location.reload();
+    }
+
+    function switchTab(tabId) {
+      if (tabId !== 'employeeTab') stopHREnrollCamera();
+      if (tabId !== 'checkinTab') stopEmployeeCamera();
+
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(el => {
+        el.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+        el.classList.add('bg-white', 'text-slate-600', 'border', 'border-slate-200');
+      });
+      document.getElementById(tabId).classList.remove('hidden');
+      const btn = document.getElementById('tab-' + tabId);
+      if (btn) {
+        btn.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+        btn.classList.remove('bg-white', 'text-slate-600', 'border', 'border-slate-200');
+      }
+    }
+
+    async function loadDeptAndPosOptions() {
+      try {
+        const [deptRes, posRes] = await Promise.all([
+          fetch(`${API_BASE}/departments`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${API_BASE}/positions`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        const dData = await deptRes.json();
+        const pData = await posRes.json();
+        document.getElementById('empDept').innerHTML = dData.data?.map(d => `<option value="${d._id}">${d.name}</option>`).join('') || '';
+        document.getElementById('empPos').innerHTML = pData.data?.map(p => `<option value="${p._id}">${p.name}</option>`).join('') || '';
+      } catch (err) {}
+    }
+
+    async function handleCreateEmployee(e) {
+      e.preventDefault();
+      if (!enrolledDescriptor || enrolledDescriptor.length === 0) {
+        showToast('Vui lòng quét mặt hoặc nạp ảnh chân dung trước khi lưu hồ sơ!', 'error');
+        return;
+      }
+
+      const payload = {
+        employeeCode: document.getElementById('empCode').value,
+        fullName: document.getElementById('empFullName').value,
+        email: document.getElementById('empEmail').value,
+        department: document.getElementById('empDept').value,
+        position: document.getElementById('empPos').value,
+        baseSalary: Number(document.getElementById('empSalary').value),
+        username: document.getElementById('empUsername').value,
+        password: document.getElementById('empPassword').value,
+        role: 'EMPLOYEE',
+        faceDescriptor: enrolledDescriptor // Gửi 128 số float lên DB
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/employees`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(`Đã thêm nhân sự [${payload.fullName}] & lưu vector mặt thành công!`);
+          document.getElementById('empCode').value = '';
+          document.getElementById('empFullName').value = '';
+          document.getElementById('empEmail').value = '';
+          document.getElementById('empUsername').value = '';
+          document.getElementById('enrollStatusTag').innerText = 'Chưa quét mặt';
+          document.getElementById('enrollStatusTag').className = 'text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200';
+          enrolledDescriptor = null;
+          stopHREnrollCamera();
+          loadEmployees();
+        } else {
+          showToast(data.message, 'error');
+        }
+      } catch (err) { showToast('Lỗi tạo nhân sự', 'error'); }
+    }
+
+    async function loadEmployees() {
+      try {
+        const res = await fetch(`${API_BASE}/employees`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const tbody = document.getElementById('employeeTableBody');
+        tbody.innerHTML = '';
+        data.data?.forEach(e => {
+          const hasFace = e.faceDescriptor && e.faceDescriptor.length > 0;
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50">
+              <td class="p-3.5 font-bold text-indigo-600">${e.employeeCode}</td>
+              <td class="p-3.5 font-semibold text-slate-900">${e.fullName}</td>
+              <td class="p-3.5 text-amber-600 font-mono font-bold">${e.user?.username || '--'}</td>
+              <td class="p-3.5">${e.department?.name || '--'}</td>
+              <td class="p-3.5">${e.position?.name || '--'}</td>
+              <td class="p-3.5"><span class="px-2.5 py-1 rounded-md text-[10px] font-bold ${hasFace ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-rose-100 text-rose-700 border border-rose-200'}">${hasFace ? 'Đã Lưu Vector' : 'Chưa Có Mặt'}</span></td>
+            </tr>
+          `;
+        });
+      } catch (err) {}
+    }
+
+    async function loadMyAttendance() {
+    try {
+      const res = await fetch(`${API_BASE}/attendances/my-logs`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      const tbody = document.getElementById('attendanceLogsTable');
+      tbody.innerHTML = '';
+
+      // Bản đồ ánh xạ sang tiếng Việt có màu sắc trực quan
+      const STATUS_MAP = {
+        'PRESENT': { label: 'Đủ Công', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        'HALF_DAY': { label: 'Nửa Công', class: 'bg-amber-50 text-amber-700 border-amber-200' },
+        'ABSENT': { label: 'Chưa Đạt Giờ', class: 'bg-rose-50 text-rose-700 border-rose-200' }
+      };
+
+      data.data?.forEach(item => {
+        const inTime = item.checkIn ? new Date(item.checkIn).toLocaleTimeString('vi-VN') : '--';
+        const outTime = item.checkOut ? new Date(item.checkOut).toLocaleTimeString('vi-VN') : '--';
+        const statusInfo = STATUS_MAP[item.status] || { label: item.status, class: 'bg-slate-100 text-slate-700 border-slate-200' };
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3.5 font-semibold text-slate-800">${item.date}</td>
+            <td class="p-3.5 ${item.isLate ? 'text-amber-600 font-bold' : ''}">${inTime}</td>
+            <td class="p-3.5">${outTime}</td>
+            <td class="p-3.5 font-bold">${item.workHours || 0} giờ</td>
+            <td class="p-3.5">
+              <span class="px-2.5 py-1 rounded-md text-[10px] font-bold border ${statusInfo.class}">
+                ${statusInfo.label}
+              </span>
+            </td>
+          </tr>
+        `;
+      });
+    } catch (err) {}
+  }
+
+    async function handleCreateLeave(e) {
+      e.preventDefault();
+      const payload = {
+        leaveType: document.getElementById('leaveType').value,
+        startDate: document.getElementById('leaveStart').value,
+        endDate: document.getElementById('leaveEnd').value,
+        durationDays: Number(document.getElementById('leaveDays').value),
+        reason: document.getElementById('leaveReason').value
+      };
+      try {
+        const res = await fetch(`${API_BASE}/leave-requests`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Nộp đơn xin nghỉ thành công!');
+          document.getElementById('leaveReason').value = '';
+          loadLeaveRequests();
+        } else { showToast(data.message, 'error'); }
+      } catch (err) {}
+    }
+
+    async function loadLeaveRequests() {
+      try {
+        const res = await fetch(`${API_BASE}/leave-requests`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const tbody = document.getElementById('leaveRequestsTable');
+        tbody.innerHTML = '';
+        data.data?.forEach(item => {
+          const isHR = currentUser.role === 'HR_ADMIN';
+          const canApprove = isHR && item.status === 'PENDING';
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50">
+              <td class="p-3.5 font-semibold">${item.employee?.fullName || 'N/A'}</td>
+              <td class="p-3.5">${item.durationDays} ngày (${item.leaveType})</td>
+              <td class="p-3.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold border ${item.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}">${item.status}</span></td>
+              <td class="p-3.5 text-right">
+                ${canApprove ? `<button onclick="decideLeave('${item._id}','APPROVED')" class="text-xs font-bold text-emerald-600 mr-2">Duyệt</button><button onclick="decideLeave('${item._id}','REJECTED')" class="text-xs font-bold text-rose-600">Từ chối</button>` : '--'}
+              </td>
+            </tr>
+          `;
+        });
+      } catch (err) {}
+    }
+
+    async function decideLeave(id, status) {
+      try {
+        const res = await fetch(`${API_BASE}/leave-requests/${id}/approve`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('Đã cập nhật đơn!'); loadLeaveRequests(); }
+      } catch (err) {}
+    }
+
+    async function generatePayroll() {
+      const month = document.getElementById('payrollMonth').value || '10-2026';
+      try {
+        const res = await fetch(`${API_BASE}/payrolls/generate?month=${month}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) { showToast('Đã tính bảng lương!'); loadPayrollList(); }
+      } catch (err) {}
+    }
+
+    async function loadPayrollList() {
+      const month = document.getElementById('payrollMonth').value || '10-2026';
+      try {
+        const res = await fetch(`${API_BASE}/payrolls?month=${month}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const data = await res.json();
+        const tbody = document.getElementById('payrollTableBody');
+        tbody.innerHTML = '';
+        data.data?.forEach(item => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50">
+              <td class="p-3.5 font-mono font-bold text-indigo-600">${item.employee?.employeeCode || '--'}</td>
+              <td class="p-3.5 font-bold">${item.employee?.fullName || '--'}</td>
+              <td class="p-3.5">${item.baseSalary.toLocaleString('vi-VN')} đ</td>
+              <td class="p-3.5 font-bold">${item.workingDays} công</td>
+              <td class="p-3.5 text-amber-600 font-bold">${item.lateDaysCount} lần</td>
+              <td class="p-3.5 text-rose-600">${item.deductions.toLocaleString('vi-VN')} đ</td>
+              <td class="p-3.5 font-black text-emerald-600">${item.netSalary.toLocaleString('vi-VN')} đ</td>
+            </tr>
+          `;
+        });
+      } catch (err) {}
+    }
+
+    async function exportExcel() {
+      const month = document.getElementById('payrollMonth').value || '10-2026';
+      try {
+        const res = await fetch(`${API_BASE}/payrolls/export-excel?month=${month}`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Bang_Luong_${month}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast('Xuất tệp Excel thành công!');
+      } catch (err) { showToast('Lỗi xuất Excel', 'error'); }
+    }
+
+    init();
+  </script>
+</body>
+</html>

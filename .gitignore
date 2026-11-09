@@ -1,0 +1,14 @@
+# Thư viện
+node_modules/
+
+# Cấu hình môi trường bảo mật
+.env
+
+# File logs & file tạm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+
+# File excel xuất thử nghiệm
+*.xlsx
